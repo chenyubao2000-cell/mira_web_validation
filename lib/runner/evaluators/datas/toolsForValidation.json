@@ -1,0 +1,760 @@
+{
+    "tools": [
+      {
+        "name": "search",
+        "description": "Search the web for high-quality content including research papers, technical documentation, news articles, code repositories, and authoritative websites. Returns full content with AI-generated summaries and metadata. Supports category filtering for targeted results (github, news, research papers, pdf, tweets, etc). Best for finding specific types of content, recent information, or results from trusted sources. Note: For searching professionals/candidates/people, use people_search tool; for searching companies/organizations, use company_search tool.",
+        "parameters": [
+          {
+            "name": "query",
+            "type": "string",
+            "required": true,
+            "description": "Search query in natural language. Be specific and clear about what you're looking for.",
+            "examples": [
+              "latest research in transformer models 2024",
+              "how to implement server-side rendering in Next.js 15",
+              "Python async/await best practices",
+              "climate change impact on agriculture"
+            ]
+          },
+          {
+            "name": "numResults",
+            "type": "number",
+            "subtype": "integer",
+            "required": false,
+            "default": 5,
+            "min": 1,
+            "max": 10,
+            "description": "Number of results to return. Default: 5, Max: 10",
+            "note": "代码执行时会被限制为最大 10"
+          },
+          {
+            "name": "category",
+            "type": "enum",
+            "required": false,
+            "values": [
+              "research paper",
+              "news",
+              "github",
+              "tweet",
+              "personal site",
+              "pdf",
+              "financial report"
+            ],
+            "description": "Content category filter for higher quality, targeted results"
+          },
+          {
+            "name": "searchType",
+            "type": "enum",
+            "required": false,
+            "default": "auto",
+            "values": [
+              "neural",
+              "auto",
+              "fast",
+              "deep"
+            ],
+            "description": "Search algorithm mode: 'auto' (recommended, balances quality and speed), 'neural' (pure semantic search using embeddings), 'fast' (quick results with streamlined algorithms), 'deep' (comprehensive research mode with query expansion and detailed context)",
+            "note": "与 type 参数功能相同"
+          },
+          {
+            "name": "type",
+            "type": "enum",
+            "required": false,
+            "default": "auto",
+            "values": [
+              "neural",
+              "fast",
+              "auto",
+              "deep"
+            ],
+            "description": "The type of search algorithm to use. 'neural' uses an embeddings-based model for semantic understanding, 'auto' (default) intelligently combines neural and other search methods for balanced results, 'fast' uses streamlined versions for quick responses, and 'deep' provides comprehensive search with query expansion and detailed context for thorough research",
+            "note": "与 searchType 参数功能相同"
+          },
+          {
+            "name": "includeDomains",
+            "type": "array",
+            "subtype": "string",
+            "required": false,
+            "maxLength": 1200,
+            "description": "Whitelist of domains to search (without https:// or paths). Only results from these domains will be returned",
+            "examples": [
+              ["arxiv.org", "github.com"],
+              ["docs.python.org", "developer.mozilla.org", "stackoverflow.com"],
+              ["nytimes.com", "reuters.com"]
+            ],
+            "note": "域名不需要包含 https:// 或路径"
+          },
+          {
+            "name": "excludeDomains",
+            "type": "array",
+            "subtype": "string",
+            "required": false,
+            "maxLength": 1200,
+            "description": "Blacklist of domains to exclude from results. Use to filter out low-quality or irrelevant sources",
+            "examples": [
+              ["pinterest.com", "quora.com"],
+              ["reddit.com", "medium.com"]
+            ],
+            "note": "域名不需要包含 https:// 或路径"
+          },
+          {
+            "name": "startPublishedDate",
+            "type": "string",
+            "required": false,
+            "format": "ISO 8601",
+            "description": "Include only content published on or after this date",
+            "examples": [
+              "2024-01-01",
+              "2024-06-15T00:00:00.000Z"
+            ],
+            "note": "必须使用 ISO 8601 格式 (YYYY-MM-DD 或 YYYY-MM-DDTHH:mm:ss.sssZ)"
+          },
+          {
+            "name": "endPublishedDate",
+            "type": "string",
+            "required": false,
+            "format": "ISO 8601",
+            "description": "Include only content published on or before this date",
+            "examples": [
+              "2024-12-31",
+              "2024-06-30T23:59:59.999Z"
+            ],
+            "note": "必须使用 ISO 8601 格式 (YYYY-MM-DD 或 YYYY-MM-DDTHH:mm:ss.sssZ)"
+          }
+        ]
+      },
+      {
+        "name": "company_search",
+        "description": "Search for companies, organizations, and businesses using search api. Optimized for finding company profiles including LinkedIn company pages, corporate websites, startup information, business details, and organizational data. Ideal for market research, competitor analysis, business development, investment research, and finding potential clients or partners. Use this tool when looking for: startups, enterprises, corporations, organizations, employers, tech companies, SaaS businesses, Fortune 500 companies, unicorns, or any type of business entity.",
+        "note": "内部固定使用 category='company'",
+        "parameters": [
+          {
+            "name": "query",
+            "type": "string",
+            "required": true,
+            "description": "Natural language query to find companies and organizations. Be specific about industry, location, size, funding stage, or business model",
+            "examples": [
+              "AI startups in Silicon Valley with Series A funding",
+              "B2B SaaS companies focused on HR tech",
+              "Fortune 500 companies in financial services",
+              "European fintech unicorns",
+              "E-commerce companies using Shopify",
+              "Healthcare technology companies hiring engineers",
+              "Cloud infrastructure startups backed by top VCs",
+              "Enterprise software companies with remote-first culture"
+            ]
+          },
+          {
+            "name": "numResults",
+            "type": "number",
+            "subtype": "integer",
+            "required": false,
+            "default": 5,
+            "min": 1,
+            "max": 10,
+            "description": "Number of companies to return. Default: 5, Max: 10",
+            "note": "代码执行时会被限制为最大 10"
+          },
+          {
+            "name": "searchType",
+            "type": "enum",
+            "required": false,
+            "default": "auto",
+            "values": [
+              "neural",
+              "auto",
+              "fast",
+              "deep"
+            ],
+            "description": "Search algorithm mode for company search: 'auto' (default) - Intelligently combines neural and other search methods for balanced quality and speed, 'neural' - Pure semantic search using embeddings, good for understanding business models and company descriptions, 'fast' - Quick results with streamlined algorithms, suitable for simple queries, 'deep' - Most comprehensive search with query expansion, finds similar companies with different descriptions"
+          }
+        ]
+      },
+      {
+        "name": "people_search",
+        "description": "Search for professionals, candidates, and individuals using search api. Optimized for finding people profiles including LinkedIn pages, professional backgrounds, resumes, CVs, and personal career information. Ideal for recruitment, talent sourcing, networking, and finding experts in specific fields. Use this tool when looking for: engineers, developers, sales professionals, executives, managers, researchers, scientists, designers, consultants, job candidates, industry experts, or any other type of professional.",
+        "note": "内部固定使用 category='people'",
+        "parameters": [
+          {
+            "name": "query",
+            "type": "string",
+            "required": true,
+            "description": "Natural language query to find professionals. Be specific about role, skills, experience, location, or company",
+            "examples": [
+              "senior backend engineers with Golang experience in San Francisco",
+              "product managers with B2B SaaS background",
+              "data scientists with PhD and publications in NLP",
+              "engineering managers who worked at FAANG companies",
+              "frontend developers specialized in React and TypeScript",
+              "sales directors with enterprise software experience",
+              "machine learning researchers at top AI labs",
+              "UX designers with healthcare product experience"
+            ]
+          },
+          {
+            "name": "numResults",
+            "type": "number",
+            "subtype": "integer",
+            "required": false,
+            "default": 5,
+            "min": 1,
+            "max": 10,
+            "description": "Number of profiles to return. Default: 5, Max: 10",
+            "note": "代码执行时会被限制为最大 10"
+          },
+          {
+            "name": "searchType",
+            "type": "enum",
+            "required": false,
+            "default": "auto",
+            "values": [
+              "neural",
+              "auto",
+              "fast",
+              "deep"
+            ],
+            "description": "Search algorithm mode for people search: 'auto' (default) - Intelligently combines neural and other search methods for balanced quality and speed, 'neural' - Pure semantic search using embeddings, good for understanding complex professional profiles and skills, 'fast' - Quick results with streamlined algorithms, suitable for simple queries, 'deep' - Most comprehensive search with query expansion, finds similar profiles with different wordings"
+          }
+        ]
+      },
+      {
+        "name": "clarify_question",
+        "description": "Use this tool when user's question is unclear, missing necessary information, or has multiple possible interpretations.\n\nGuidelines:\n- **Prefer selections over text input**: Always use radio/checkbox when options are predictable (even if there are many possibilities, pick the most common 3-4)\n- **Prioritize ruthlessly**: Only ask 1-3 questions that significantly impact the outcome\n- **Sort by impact**: Order questions by how much they affect the final result (highest impact first)\n- **Limit choices**: For radio/checkbox fields, provide ≤ 3 specific options + 1 generic fallback (e.g., \"Other\"/\"Custom\")\n- Use text/textarea ONLY when:\n  - User needs to provide unique identifiers (names, URLs, IDs)\n  - Input is truly unpredictable and cannot be categorized\n  - Free-form creative input is essential\n- Provide clear description to help user understand each question\n- Required fields should only be for truly critical information",
+        "parameters": [
+          {
+            "name": "title",
+            "type": "string",
+            "required": true,
+            "description": "Form title, briefly describe what needs clarification",
+            "examples": [
+              "Need More Information",
+              "Please Select Your Preferences",
+              "Confirm Action"
+            ]
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "required": false,
+            "description": "Form description, explain why this information is needed",
+            "examples": [
+              "To provide you with the most accurate help, please answer the following questions",
+              "We need a few details to proceed with your request"
+            ]
+          },
+          {
+            "name": "fields",
+            "type": "array",
+            "subtype": "object",
+            "required": true,
+            "min": 1,
+            "max": 3,
+            "description": "List of form fields (top 1-3 most critical questions only). Each field object contains: id (string, required) - Unique field identifier; type (enum, required) - Field type: 'radio' for single selection, 'checkbox' for multiple selection, 'text'/'textarea'/'number'/'date' for input fields; label (string, required) - Field label; placeholder (string, optional) - Input placeholder text; description (string, optional) - Field description to help user understand the question; required (boolean, optional, default: true) - Whether the field is required; options (array, optional, max 4, required for radio/checkbox) - Options list with value and label, should provide ≤ 3 specific options + 1 generic option like 'Other'/'Custom'; defaultValue (string|number|boolean|string[], optional) - Default value; validation (object, optional) - Validation rules with min, max, pattern, and message properties",
+            "examples": [
+              [
+                {
+                  "id": "project_type",
+                  "type": "radio",
+                  "label": "Project Type",
+                  "description": "Please select the type of project you want to create",
+                  "required": true,
+                  "options": [
+                    {
+                      "value": "web",
+                      "label": "Web Application"
+                    },
+                    {
+                      "value": "mobile",
+                      "label": "Mobile Application"
+                    },
+                    {
+                      "value": "api",
+                      "label": "API Service"
+                    },
+                    {
+                      "value": "other",
+                      "label": "Other"
+                    }
+                  ],
+                  "defaultValue": "web"
+                }
+              ],
+              [
+                {
+                  "id": "language",
+                  "type": "radio",
+                  "label": "Programming Language",
+                  "description": "Select your preferred programming language",
+                  "required": true,
+                  "options": [
+                    {
+                      "value": "typescript",
+                      "label": "TypeScript"
+                    },
+                    {
+                      "value": "javascript",
+                      "label": "JavaScript"
+                    },
+                    {
+                      "value": "python",
+                      "label": "Python"
+                    },
+                    {
+                      "value": "other",
+                      "label": "Other"
+                    }
+                  ]
+                },
+                {
+                  "id": "features",
+                  "type": "checkbox",
+                  "label": "Required Features",
+                  "description": "Select the features you need (multiple selection allowed)",
+                  "required": false,
+                  "options": [
+                    {
+                      "value": "auth",
+                      "label": "User Authentication"
+                    },
+                    {
+                      "value": "database",
+                      "label": "Database"
+                    },
+                    {
+                      "value": "api",
+                      "label": "API Integration"
+                    },
+                    {
+                      "value": "custom",
+                      "label": "Custom Features"
+                    }
+                  ],
+                  "defaultValue": []
+                },
+                {
+                  "id": "project_name",
+                  "type": "text",
+                  "label": "Project Name",
+                  "placeholder": "Enter project name",
+                  "description": "Used to identify your project",
+                  "required": true,
+                  "validation": {
+                    "min": 2,
+                    "max": 50,
+                    "pattern": "^[a-zA-Z0-9-_]+$",
+                    "message": "Project name can only contain letters, numbers, hyphens and underscores, 2-50 characters"
+                  }
+                }
+              ],
+              [
+                {
+                  "id": "url",
+                  "type": "text",
+                  "label": "Website URL",
+                  "placeholder": "https://example.com",
+                  "description": "Enter the website address to analyze",
+                  "required": true,
+                  "validation": {
+                    "pattern": "^https?://.+",
+                    "message": "Please enter a valid URL"
+                  }
+                },
+                {
+                  "id": "description",
+                  "type": "textarea",
+                  "label": "Project Description",
+                  "placeholder": "Please describe your project requirements in detail...",
+                  "description": "Describe your project requirements as detailed as possible",
+                  "required": true,
+                  "validation": {
+                    "min": 10,
+                    "max": 1000,
+                    "message": "Description should be between 10-1000 characters"
+                  }
+                }
+              ]
+            ],
+            "note": "Field type should prioritize radio/checkbox over text/textarea for better UX. Options array is required for radio/checkbox types and should have maximum 4 items (≤ 3 specific options + 1 generic fallback). Use text/textarea only when user needs to provide unique identifiers, input is truly unpredictable, or free-form creative input is essential."
+          }
+        ]
+      },
+      {
+        "name": "confirm",
+        "description": "Ask user for confirmation before executing dangerous operations.\nUse when: deleting files, running destructive shell commands, modifying system configs, or any irreversible action.",
+        "parameters": [
+          {
+            "name": "message",
+            "type": "string",
+            "required": true,
+            "description": "Description of the dangerous action and its potential impact.",
+            "examples": [
+              "This will permanently delete all files in the /tmp directory. This action cannot be undone.",
+              "This command will modify system configuration files and may affect system stability. Please confirm to proceed.",
+              "This operation will overwrite the existing database. All current data will be lost. Are you sure you want to continue?",
+              "Running this script will execute destructive shell commands that may delete important files. Proceed with caution."
+            ]
+          }
+        ]
+      },
+      {
+        "name": "write_todos",
+        "description": "Update the todo list for the current session. To be used proactively and often to track progress and pending tasks. Make sure that at least one task is in_progress at all times.",
+        "parameters": [
+          {
+            "name": "todos",
+            "type": "array",
+            "subtype": "object",
+            "required": true,
+            "description": "Array of todo items to create or update. Each todo item contains: content (string, required, min length: 1) - The task description or content; status (enum, required) - Current status of the task, must be one of: 'pending', 'in_progress', 'completed'; id (string, required, min length: 1) - Unique identifier for the task",
+            "examples": [
+              [
+                {
+                  "id": "task-1",
+                  "content": "Implement user authentication",
+                  "status": "in_progress"
+                },
+                {
+                  "id": "task-2",
+                  "content": "Write API documentation",
+                  "status": "pending"
+                },
+                {
+                  "id": "task-3",
+                  "content": "Fix login bug",
+                  "status": "completed"
+                }
+              ],
+              [
+                {
+                  "id": "todo-001",
+                  "content": "Review code changes",
+                  "status": "in_progress"
+                },
+                {
+                  "id": "todo-002",
+                  "content": "Update dependencies",
+                  "status": "pending"
+                }
+              ],
+              [
+                {
+                  "id": "1",
+                  "content": "Design database schema",
+                  "status": "in_progress"
+                }
+              ]
+            ],
+            "note": "Ensure at least one task has status 'in_progress' at all times to track active work"
+          }
+        ]
+      },
+      {
+        "name": "complete",
+        "description": "Use this tool to deliver file-based artifacts to the user with structured tracking.\n\nIMPORTANT WORKFLOW:\n1. First, you MUST use the 'write_file' tool to create or update the files\n2. Verify the file content is correct and complete\n3. Only then use this tool to deliver the artifacts\n\nARTIFACT TYPES:\n- text: Text files (.md, .txt)\n- pdf: PDF documents (.pdf)\n- image: Image files (.jpg, .jpeg, .png, .gif, .webp, .svg, .bmp, .ico)\n- document: Office documents (.doc, .docx)\n- spreadsheet: Spreadsheet files (.xls, .xlsx, .csv)\n- presentation: Presentation files (.ppt, .pptx)\n- code: Code files (.py, .js, .jsx, .ts, .tsx, .html, .css)\n- other: Other file types not covered above\n\nThis tool will:\n- Deliver a set of artifacts (files) to the user\n- Provide structured delivery summary and tracking\n- Categorize artifacts by type for better organization\n\nDo NOT use this tool before creating the files with write_file.",
+        "parameters": [
+          {
+            "name": "summary",
+            "type": "string",
+            "required": true,
+            "description": "Summary of what was delivered overall.",
+            "examples": [
+              "Delivered a complete React application with authentication and user dashboard",
+              "Created documentation files including API reference and user guide",
+              "Generated three code files: main component, utilities, and configuration"
+            ]
+          },
+          {
+            "name": "artifacts",
+            "type": "array",
+            "subtype": "object",
+            "required": true,
+            "description": "Array of artifacts to deliver. Each artifact object contains: type (enum, required) - The category of artifact being delivered, choose based on file extensions: text (.md, .txt), pdf (.pdf), image (.jpg, .png, .gif, etc.), document (.doc, .docx), spreadsheet (.xls, .xlsx, .csv), presentation (.ppt, .pptx), code (.py, .js, .jsx, .ts, .tsx, .html, .css), or other; path (string, required) - The absolute path to the file to deliver",
+            "examples": [
+              [
+                {
+                  "type": "code",
+                  "path": "/home/user/project/src/App.tsx"
+                },
+                {
+                  "type": "text",
+                  "path": "/home/user/project/README.md"
+                }
+              ],
+              [
+                {
+                  "type": "image",
+                  "path": "/home/user/project/assets/logo.png"
+                },
+                {
+                  "type": "document",
+                  "path": "/home/user/project/docs/specification.docx"
+                },
+                {
+                  "type": "pdf",
+                  "path": "/home/user/project/docs/report.pdf"
+                }
+              ],
+              [
+                {
+                  "type": "code",
+                  "path": "/workspace/utils/helper.js"
+                },
+                {
+                  "type": "code",
+                  "path": "/workspace/components/Button.tsx"
+                },
+                {
+                  "type": "text",
+                  "path": "/workspace/CHANGELOG.md"
+                }
+              ]
+            ],
+            "note": "Must use 'write_file' tool first to create or update files before delivering them with this tool. Artifact type should match the file extension: text (.md, .txt), pdf (.pdf), image (.jpg, .jpeg, .png, .gif, .webp, .svg, .bmp, .ico), document (.doc, .docx), spreadsheet (.xls, .xlsx, .csv), presentation (.ppt, .pptx), code (.py, .js, .jsx, .ts, .tsx, .html, .css), or other for unknown types."
+          }
+        ]
+      },
+      {
+        "name": "sb_file_create",
+        "description": "Create a new file with the provided contents at a given path in the workspace. The path must be relative to /workspace (e.g., \"src/main.py\" for /workspace/src/main.py).",
+        "parameters": [
+          {
+            "name": "filePath",
+            "type": "string",
+            "required": true,
+            "description": "Path to the file to be created, relative to /workspace",
+            "examples": [
+              "src/main.py",
+              "components/Button.tsx",
+              "README.md",
+              "lib/utils/helper.js",
+              "app/api/users/route.ts"
+            ],
+            "note": "Path must be relative to /workspace. Parent directories will be created automatically if they don't exist. If the file already exists, use sb_file_edit to modify it or sb_file_rewrite to replace it."
+          },
+          {
+            "name": "fileContents",
+            "type": "string",
+            "required": true,
+            "description": "The content to write to the file. Limit each file to 15000 tokens maximum",
+            "examples": [
+              "import React from 'react';\n\nexport const Button = () => {\n  return <button>Click me</button>;\n};",
+              "# Project Documentation\n\nThis project is a web application built with Next.js.",
+              "def hello_world():\n    print('Hello, World!')\n    return True"
+            ],
+            "note": "Maximum file size is 15000 tokens. The tool will automatically create parent directories if needed."
+          }
+        ]
+      },
+      {
+        "name": "sb_file_rewrite",
+        "description": "Completely rewrite an existing file with new content. The file path must be relative to /workspace. IMPORTANT: Always prefer using edit_file for making changes to code. Only use this tool when edit_file fails or when you need to replace the entire file content.",
+        "parameters": [
+          {
+            "name": "filePath",
+            "type": "string",
+            "required": true,
+            "description": "Path to the file to be rewritten, relative to /workspace",
+            "examples": [
+              "src/main.py",
+              "components/Button.tsx",
+              "README.md",
+              "lib/utils/helper.js",
+              "app/api/users/route.ts"
+            ],
+            "note": "Path must be relative to /workspace. The file must already exist. Use sb_file_create to create a new file if it doesn't exist."
+          },
+          {
+            "name": "fileContents",
+            "type": "string",
+            "required": true,
+            "description": "The new content to write to the file, replacing all existing content",
+            "examples": [
+              "import React from 'react';\n\nexport const Button = () => {\n  return <button>Click me</button>;\n};",
+              "# Updated Project Documentation\n\nThis project has been completely rewritten with new architecture.",
+              "def new_hello_world():\n    print('Hello, Updated World!')\n    return True"
+            ],
+            "note": "This will completely replace all existing content in the file. Use with caution. Always prefer using edit_file for making changes to code."
+          }
+        ]
+      },
+      {
+        "name": "sb_file_delete",
+        "description": "Delete a file at the given path. The path must be relative to /workspace.",
+        "parameters": [
+          {
+            "name": "filePath",
+            "type": "string",
+            "required": true,
+            "description": "Path to the file to be deleted, relative to /workspace",
+            "examples": [
+              "src/old-component.tsx",
+              "temp/test.js",
+              "docs/deprecated.md",
+              "lib/utils/unused-helper.js",
+              "app/api/legacy/route.ts"
+            ],
+            "note": "Path must be relative to /workspace. The file must exist. This operation is irreversible - the file will be permanently deleted."
+          }
+        ]
+      },
+      {
+        "name": "sb_file_edit",
+        "description": "Use this tool to make an edit to an existing file. This will be read by a less intelligent model, which will quickly apply the edit.\nYou should make it clear what the edit is, while also minimizing the unchanged code you write.\nWhen writing the edit, you should specify each edit in sequence, with the special comment\n// ... existing code ... to represent unchanged code in between edited lines.\n\nFor example:\n// ... existing code ...\nFIRST_EDIT\n// ... existing code ...\nSECOND_EDIT\n// ... existing code ...\nTHIRD_EDIT\n// ... existing code ...\n\nYou should still bias towards repeating as few lines of the original file as possible to convey the change.\nBut, each edit should contain sufficient context of unchanged lines around the code you're editing to resolve ambiguity.\nDO NOT omit spans of pre-existing code (or comments) without using the // ... existing code ... comment to indicate its absence.\nIf you omit the existing code comment, the model may inadvertently delete these lines.\nIf you plan on deleting a section, you must provide context before and after to delete it.\nMake sure it is clear what the edit should be, and where it should be applied.\nALWAYS make all edits to a file in a single edit_file instead of multiple edit_file calls to the same file.",
+        "parameters": [
+          {
+            "name": "targetFile",
+            "type": "string",
+            "required": true,
+            "description": "The target file to modify",
+            "examples": [
+              "src/components/Button.tsx",
+              "lib/utils/helper.js",
+              "app/api/users/route.ts",
+              "README.md"
+            ],
+            "note": "Path must be relative to /workspace. The file must already exist."
+          },
+          {
+            "name": "instructions",
+            "type": "string",
+            "required": true,
+            "description": "A single sentence written in the first person describing what you're changing. Used to help disambiguate uncertainty in the edit.",
+            "examples": [
+              "I'm adding a new prop 'disabled' to the Button component",
+              "I'm updating the error handling logic to catch network errors",
+              "I'm removing the deprecated function and replacing it with the new implementation",
+              "I'm adding a new route handler for POST requests"
+            ]
+          },
+          {
+            "name": "codeEdit",
+            "type": "string",
+            "required": true,
+            "description": "Specify ONLY the precise lines of code that you wish to edit. Use // ... existing code ... for unchanged sections.",
+            "examples": [
+              "// ... existing code ...\nconst Button = ({ children, disabled = false }) => {\n  return (\n    <button disabled={disabled}>\n      {children}\n    </button>\n  );\n};\n// ... existing code ...",
+              "// ... existing code ...\ntry {\n  const response = await fetch(url);\n  if (!response.ok) {\n    throw new Error(`Network error: ${response.status}`);\n  }\n  return await response.json();\n} catch (error) {\n  if (error instanceof TypeError) {\n    console.error('Network request failed:', error);\n  }\n  throw error;\n}\n// ... existing code ...",
+              "// ... existing code ...\n// Removed deprecated function\n// ... existing code ...\nfunction newImplementation() {\n  // New code here\n}\n// ... existing code ..."
+            ],
+            "note": "Use // ... existing code ... to represent unchanged code sections. Each edit should contain sufficient context around the code you're editing to resolve ambiguity. DO NOT omit spans of pre-existing code without using the // ... existing code ... comment. Always make all edits to a file in a single edit_file call instead of multiple calls."
+          }
+        ]
+      },
+      {
+        "name": "sb_command_execute",
+        "description": "Execute a shell command in the workspace directory.\n\nIMPORTANT: \n- Commands are non-blocking by default and run in a tmux session.\n- Working directory is automatically determined:\n  * If command contains \"sessions/{currentSessionId}/\" or other workspace dirs (projects/tasks/memory/skills) → runs in /workspace\n  * If command uses relative path like \"file.py\" OR \"sessions/file.py\" → runs in /workspace/sessions/{currentSessionId}\n  * Use 'folder' parameter for explicit directory control (highest priority)\n- File isolation: All session files are automatically stored in /workspace/sessions/{sessionId}/\n- This is ideal for long-running operations like starting servers or build processes.\n- Uses tmux sessions to maintain state between commands.\n- This tool is essential for running CLI tools, installing packages, and managing system operations.",
+        "parameters": [
+          {
+            "name": "command",
+            "type": "string",
+            "required": true,
+            "description": "The shell command to execute. Use this for running CLI tools, installing packages, or system operations. Commands can be chained using &&, ||, and | operators.",
+            "examples": [
+              "npm install",
+              "python app.py",
+              "ls -la",
+              "cd src && npm run build",
+              "git status || echo 'Not a git repository'",
+              "cat file.txt | grep 'error'"
+            ]
+          },
+          {
+            "name": "folder",
+            "type": "string",
+            "required": false,
+            "description": "Optional relative path to a subdirectory of /workspace where the command should be executed. Example: \"data/pdfs\"",
+            "examples": [
+              "data/pdfs",
+              "src/components",
+              "app/api",
+              "tests/unit"
+            ],
+            "note": "Has highest priority for determining working directory. If not provided, working directory is automatically determined based on command content."
+          },
+          {
+            "name": "sessionName",
+            "type": "string",
+            "required": false,
+            "description": "Optional name of the tmux session to use. Use named sessions for related commands that need to maintain state. Defaults to a random session name.",
+            "examples": [
+              "dev-server",
+              "build-process",
+              "test-runner",
+              "data-processing"
+            ],
+            "note": "Use named sessions when you need to run multiple related commands that share state or when you want to check output later with sb_command_logs_get"
+          },
+          {
+            "name": "blocking",
+            "type": "boolean",
+            "required": false,
+            "default": false,
+            "description": "Whether to wait for the command to complete. Defaults to false for non-blocking execution.",
+            "note": "Set to true to wait for command completion. Useful for quick commands. For long-running operations, keep false and use sb_command_logs_get to check progress."
+          },
+          {
+            "name": "timeout",
+            "type": "number",
+            "subtype": "integer",
+            "required": false,
+            "default": 60,
+            "min": 1,
+            "description": "Optional timeout in seconds for blocking commands. Defaults to 60. Ignored for non-blocking commands.",
+            "note": "Only applies when blocking is true. Maximum wait time for command to complete."
+          }
+        ]
+      },
+      {
+        "name": "sb_command_logs_get",
+        "description": "Check the output of a previously executed command in a tmux session. Use this to monitor the progress or results of non-blocking commands.",
+        "parameters": [
+          {
+            "name": "sessionName",
+            "type": "string",
+            "required": true,
+            "description": "The name of the tmux session to check.",
+            "examples": [
+              "dev-server",
+              "build-process",
+              "test-runner",
+              "session_abc12345"
+            ],
+            "note": "Use the session name from sb_command_execute or sb_command_running_list to check output of a running command"
+          },
+          {
+            "name": "killSession",
+            "type": "boolean",
+            "required": false,
+            "default": false,
+            "description": "Whether to terminate the tmux session after checking. Set to true when you're done with the command.",
+            "note": "Set to true to clean up the session after checking output. Use this when the command has completed and you no longer need the session."
+          }
+        ]
+      },
+      {
+        "name": "sb_command_terminate",
+        "description": "Terminate a running command by killing its tmux session.",
+        "parameters": [
+          {
+            "name": "sessionName",
+            "type": "string",
+            "required": true,
+            "description": "The name of the tmux session to terminate.",
+            "examples": [
+              "dev-server",
+              "build-process",
+              "test-runner",
+              "session_abc12345"
+            ],
+            "note": "Use the session name from sb_command_execute or sb_command_running_list to terminate a running command"
+          }
+        ]
+      },
+      {
+        "name": "sb_command_running_list",
+        "description": "List all running tmux sessions and their status.",
+        "parameters": []
+      }
+    ]
+  }
+  

@@ -1,0 +1,42 @@
+{
+  "name": "mira-evaluation",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3002",
+    "build": "next build",
+    "start": "next start --port 3002",
+    "lint": "next lint",
+    "setup-runner": "tsx scripts/setup-runner.ts",
+    "run-experiment": "tsx lib/runner/run-experiment.ts",
+    "run-experiment:ask": "cross-env EVAL_DATASET=Ask EVAL_EVALUATORS=completedEvaluator,sessionCostEvaluator,gaiaEvaluator tsx lib/runner/run-experiment.ts",
+    "run-experiment:gaia": "cross-env EVAL_DATASET=GAIA EVAL_EVALUATORS=completedEvaluator,sessionCostEvaluator,gaiaEvaluator tsx lib/runner/run-experiment.ts"
+  },
+  "dependencies": {
+    "@ai-sdk/deepseek": "^1.0.32",
+    "@ai-sdk/openai": "^2.0.88",
+    "@langfuse/client": "^4.5.1",
+    "@langfuse/otel": "^4.5.1",
+    "@opentelemetry/sdk-node": "^0.208.0",
+    "ai": "^6.0.0-beta.166",
+    "form-data": "^4.0.5",
+    "https-proxy-agent": "^7.0.6",
+    "next": "14.2.18",
+    "pg": "^8.16.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.18",
+    "cross-env": "^7.0.3",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.14",
+    "tsx": "^4.7.0",
+    "typescript": "^5"
+  }
+}
