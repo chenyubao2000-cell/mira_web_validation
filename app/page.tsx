@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import { DATASET_OPTIONS, EVALUATOR_OPTIONS } from "@/lib/options";
+import MetricsChart from "@/components/MetricsChart";
+import type { ExperimentMetrics } from "@/lib/types";
 
 interface LogTab {
   id: string;
@@ -16,8 +18,10 @@ export default function EvaluationPage() {
   const [miraEnv, setMiraEnv] = useState<string>("test");
   const [evaluators, setEvaluators] = useState<string[]>([]);
   const [maxConcurrency, setMaxConcurrency] = useState<number>(5);
-  const [logTabs, setLogTabs] = useState<LogTab[]>([]);
-  const [activeTabId, setActiveTabId] = useState<string | null>(null);
+  const [currentLogs, setCurrentLogs] = useState<string[]>([]);
+  const [isLogCollapsed, setIsLogCollapsed] = useState<boolean>(false);
+  const [currentExperimentId, setCurrentExperimentId] = useState<string | null>(null);
+  const [experiments, setExperiments] = useState<ExperimentMetrics[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const logEndRef = useRef<HTMLDivElement>(null);
 
@@ -33,31 +37,36 @@ export default function EvaluationPage() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [logTabs]);
+  }, [currentLogs]);
+
+  // 从 localStorage 加载历史实验数据
+  useEffect(() => {
+    const saved = localStorage.getItem("mira_experiments");
+    if (saved) {
+      try {
+        setExperiments(JSON.parse(saved));
+      } catch (e) {
+        console.error("Failed to load experiments:", e);
+      }
+    }
+  }, []);
+
+  // 保存实验数据到 localStorage
+  const saveExperiment = (metrics: ExperimentMetrics) => {
+    const updated = [...experiments, metrics];
+    setExperiments(updated);
+    localStorage.setItem("mira_experiments", JSON.stringify(updated));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // 创建新的日志 tab
-    const timestamp = new Date().toLocaleString("zh-CN", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-    const tabId = `log-${Date.now()}`;
-    const newTab: LogTab = {
-      id: tabId,
-      name: timestamp,
-      logs: [],
-      status: "running",
-      startTime: Date.now(),
-    };
-
-    setLogTabs((prev) => [...prev, newTab]);
-    setActiveTabId(tabId);
+    // 创建新的实验
+    const experimentId = `exp-${Date.now()}`;
+    const timestamp = Date.now();
+    setCurrentExperimentId(experimentId);
+    setCurrentLogs([]);
+    setIsLogCollapsed(false);
     setIsSubmitting(true);
 
     try {
@@ -95,29 +104,35 @@ export default function EvaluationPage() {
             try {
               const data = JSON.parse(line.slice(6));
               
-              setLogTabs((prev) => {
-                const updated = prev.map((tab) => {
-                  if (tab.id === tabId) {
-                    const newLogs = [...tab.logs];
-                    if (data.type === "log" && data.data) {
-                      newLogs.push(data.data);
-                    } else if (data.type === "error") {
-                      newLogs.push(`[ERROR] ${data.data || data.error}`);
-                    }
-                    
-                    let status = tab.status;
-                    if (data.type === "success") {
-                      status = "success";
-                    } else if (data.type === "error") {
-                      status = "error";
-                    }
-                    
-                    return { ...tab, logs: newLogs, status };
-                  }
-                  return tab;
+              // 更新当前日志
+              if (data.type === "log" && data.data) {
+                setCurrentLogs((prev) => [...prev, data.data]);
+              } else if (data.type === "error") {
+                setCurrentLogs((prev) => [...prev, `[ERROR] ${data.data || data.error}`]);
+              } else if (data.type === "success") {
+                // 实验完成，解析评价结果
+                // 从日志中提取评价结果（这里需要根据实际日志格式解析）
+                // 暂时使用占位符，后续可以从 Langfuse API 获取
+                const metrics: Record<string, number | null> = {};
+                EVALUATOR_OPTIONS.forEach((evalOpt) => {
+                  // 如果选择了该评价器，设置为 null（表示需要从 API 获取）
+                  // 如果未选择，设置为特殊标志 -1
+                  metrics[evalOpt.id] = evaluators.includes(evalOpt.id) ? null : -1;
                 });
-                return updated;
-              });
+
+                const experimentMetrics: ExperimentMetrics = {
+                  experimentId,
+                  timestamp,
+                  dataset,
+                  environment: miraEnv,
+                  evaluators,
+                  maxConcurrency,
+                  metrics,
+                  datasetRunUrl: data.data?.toString().match(/https?:\/\/[^\s]+/)?.[0],
+                };
+
+                saveExperiment(experimentMetrics);
+              }
             } catch (e) {
               // 忽略解析错误
             }
@@ -126,30 +141,29 @@ export default function EvaluationPage() {
       }
 
       setIsSubmitting(false);
+      setCurrentExperimentId(null);
     } catch (err) {
-      setLogTabs((prev) => {
-        return prev.map((tab) => {
-          if (tab.id === tabId) {
-            return {
-              ...tab,
-              status: "error",
-              logs: [...tab.logs, `[ERROR] ${err instanceof Error ? err.message : "网络错误"}`],
-            };
-          }
-          return tab;
-        });
-      });
+      setCurrentLogs((prev) => [
+        ...prev,
+        `[ERROR] ${err instanceof Error ? err.message : "网络错误"}`,
+      ]);
       setIsSubmitting(false);
+      setCurrentExperimentId(null);
     }
   };
 
-  const activeTab = logTabs.find((tab) => tab.id === activeTabId);
-  const activeLogs = activeTab?.logs || [];
+  // 获取所有已选择的评价器（包括历史实验中选择的）
+  const allSelectedEvaluators = Array.from(
+    new Set([
+      ...evaluators,
+      ...experiments.flatMap((exp) => exp.evaluators),
+    ])
+  );
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
       {/* 左侧表单区域 */}
-      <main className="flex-1 min-h-screen p-6 md:p-10 max-w-2xl overflow-y-auto">
+      <main className="w-80 min-h-screen p-6 overflow-y-auto border-r-2 border-gray-200/50 dark:border-slate-700/50">
         <div className="mb-8 animate-fadeIn">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/30 transform hover:rotate-12 transition-transform duration-300">
@@ -276,68 +290,74 @@ export default function EvaluationPage() {
         </form>
       </main>
 
-      {/* 右侧日志面板 */}
-      <aside className="w-96 border-l-2 border-gray-200/50 dark:border-slate-700/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm flex flex-col shadow-2xl">
-        <div className="border-b-2 border-gray-200/50 dark:border-slate-700/50 p-5 bg-gradient-to-r from-slate-50 to-blue-50 dark:from-slate-800 dark:to-slate-900">
-          <h2 className="text-xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent flex items-center gap-2">
-            <span>📋</span>
-            运行日志
-          </h2>
-          {logTabs.length > 0 && (
-            <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
-              {logTabs.map((tab) => {
-                const statusColors = {
-                  running: "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/30",
-                  success: "bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg shadow-green-500/30",
-                  error: "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg shadow-red-500/30",
-                  idle: "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300",
-                };
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTabId(tab.id)}
-                    className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 transform hover:scale-105 ${
-                      activeTabId === tab.id
-                        ? "ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-slate-800 scale-105"
-                        : "hover:opacity-80"
-                    } ${statusColors[tab.status]}`}
-                  >
-                    {tab.name}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 font-mono text-xs bg-gradient-to-b from-white/50 to-slate-50/50 dark:from-slate-900/50 dark:to-slate-800/50 custom-scrollbar">
-          {activeLogs.length === 0 ? (
-            <div className="text-gray-400 dark:text-gray-500 text-center mt-8 flex flex-col items-center gap-2">
-              <div className="text-4xl opacity-50">📝</div>
-              <div className="text-sm">暂无日志</div>
-            </div>
-          ) : (
-            <div className="space-y-1">
-              {activeLogs.map((log, index) => (
-                <div
-                  key={index}
-                  className={`p-2 rounded-lg transition-all duration-200 hover:bg-white/50 dark:hover:bg-slate-800/50 ${
-                    log.includes("[ERROR]") || log.includes("❌")
-                      ? "text-red-600 dark:text-red-400 bg-red-50/50 dark:bg-red-900/10"
-                      : log.includes("[WARN]") || log.includes("⚠️")
-                      ? "text-yellow-600 dark:text-yellow-400 bg-yellow-50/50 dark:bg-yellow-900/10"
-                      : log.includes("✅")
-                      ? "text-green-600 dark:text-green-400 bg-green-50/50 dark:bg-green-900/10"
-                      : "text-gray-700 dark:text-gray-300"
-                  }`}
+      {/* 中间日志面板（可折叠） */}
+      <aside className={`${isLogCollapsed ? "w-12" : "w-96"} border-r-2 border-gray-200/50 dark:border-slate-700/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm flex flex-col shadow-2xl transition-all duration-300`}>
+        {!isLogCollapsed && (
+          <>
+            <div className="border-b-2 border-gray-200/50 dark:border-slate-700/50 p-5 bg-gradient-to-r from-slate-50 to-blue-50 dark:from-slate-800 dark:to-slate-900">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent flex items-center gap-2">
+                  <span>📋</span>
+                  运行日志
+                </h2>
+                <button
+                  onClick={() => setIsLogCollapsed(true)}
+                  className="p-2 rounded-lg hover:bg-white/50 dark:hover:bg-slate-700/50 transition-colors"
+                  title="收起"
                 >
-                  {log}
-                </div>
-              ))}
-              <div ref={logEndRef} />
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
             </div>
-          )}
-        </div>
+
+            <div className="flex-1 overflow-y-auto p-4 font-mono text-xs bg-gradient-to-b from-white/50 to-slate-50/50 dark:from-slate-900/50 dark:to-slate-800/50 custom-scrollbar">
+              {currentLogs.length === 0 ? (
+                <div className="text-gray-400 dark:text-gray-500 text-center mt-8 flex flex-col items-center gap-2">
+                  <div className="text-4xl opacity-50">📝</div>
+                  <div className="text-sm">暂无日志</div>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {currentLogs.map((log, index) => (
+                    <div
+                      key={index}
+                      className={`p-2 rounded-lg transition-all duration-200 hover:bg-white/50 dark:hover:bg-slate-800/50 ${
+                        log.includes("[ERROR]") || log.includes("❌")
+                          ? "text-red-600 dark:text-red-400 bg-red-50/50 dark:bg-red-900/10"
+                          : log.includes("[WARN]") || log.includes("⚠️")
+                          ? "text-yellow-600 dark:text-yellow-400 bg-yellow-50/50 dark:bg-yellow-900/10"
+                          : log.includes("✅")
+                          ? "text-green-600 dark:text-green-400 bg-green-50/50 dark:bg-green-900/10"
+                          : "text-gray-700 dark:text-gray-300"
+                      }`}
+                    >
+                      {log}
+                    </div>
+                  ))}
+                  <div ref={logEndRef} />
+                </div>
+              )}
+            </div>
+          </>
+        )}
+        {isLogCollapsed && (
+          <button
+            onClick={() => setIsLogCollapsed(false)}
+            className="w-full h-full flex items-center justify-center hover:bg-white/50 dark:hover:bg-slate-700/50 transition-colors"
+            title="展开日志"
+          >
+            <svg className="w-5 h-5 transform -rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        )}
+      </aside>
+
+      {/* 右侧图表面板 */}
+      <aside className="flex-1 min-h-screen p-6 overflow-y-auto">
+        <MetricsChart experiments={experiments} selectedEvaluators={allSelectedEvaluators.length > 0 ? allSelectedEvaluators : EVALUATOR_OPTIONS.map(e => e.id)} />
       </aside>
     </div>
   );
