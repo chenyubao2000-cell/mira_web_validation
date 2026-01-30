@@ -10,6 +10,10 @@ interface MetricsChartProps {
 }
 
 export default function MetricsChart({ experiments, selectedEvaluators }: MetricsChartProps) {
+  // 调试日志
+  console.log("📊 MetricsChart - experiments:", experiments.length, experiments);
+  console.log("📊 MetricsChart - selectedEvaluators:", selectedEvaluators);
+  
   // 如果没有实验数据，显示空状态
   if (experiments.length === 0) {
     return (
@@ -39,12 +43,32 @@ export default function MetricsChart({ experiments, selectedEvaluators }: Metric
     // 添加所有评价器的值
     selectedEvaluators.forEach((evalId) => {
       const value = exp.metrics[evalId];
-      // -1 表示未选择该评价器，null 表示选择了但结果未生成
-      dataPoint[evalId] = value === -1 ? null : (value ?? null);
+      // -1 表示未选择该评价器，设置为 null（不显示）
+      // null 或 undefined 表示选择了但结果未生成，也设置为 null（不显示）
+      // 只有数字值才会显示
+      if (value === -1) {
+        dataPoint[evalId] = null; // 未选择，不显示
+      } else if (value === null || value === undefined) {
+        dataPoint[evalId] = null; // 未生成，不显示
+      } else {
+        dataPoint[evalId] = value; // 有值，显示
+      }
     });
 
     return dataPoint;
   });
+
+  console.log("📊 Chart data prepared:", chartData);
+
+  // 过滤掉所有值都是 null 的数据点（至少需要一个有效值）
+  const validChartData = chartData.filter((point) => {
+    return selectedEvaluators.some((evalId) => {
+      const value = point[evalId];
+      return value !== null && value !== undefined && typeof value === "number";
+    });
+  });
+
+  console.log("📊 Valid chart data:", validChartData.length, validChartData);
 
   // 评价器颜色映射
   const evaluatorColors: Record<string, string> = {
@@ -108,7 +132,7 @@ export default function MetricsChart({ experiments, selectedEvaluators }: Metric
         </p>
       </div>
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+        <LineChart data={validChartData.length > 0 ? validChartData : chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" className="dark:stroke-slate-700" />
           <XAxis
             dataKey="name"
@@ -128,6 +152,18 @@ export default function MetricsChart({ experiments, selectedEvaluators }: Metric
             // 获取评价器的显示名称
             const evaluatorOption = EVALUATOR_OPTIONS.find(opt => opt.id === evalId);
             const displayName = evaluatorOption?.label || evalId;
+            
+            // 检查这个评价器是否有任何有效数据
+            const hasData = validChartData.some((point) => {
+              const value = point[evalId];
+              return value !== null && value !== undefined && typeof value === "number";
+            });
+            
+            // 如果没有数据，不显示这条线
+            if (!hasData) {
+              return null;
+            }
+            
             return (
               <Line
                 key={evalId}

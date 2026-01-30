@@ -39,23 +39,45 @@ export default function EvaluationPage() {
     scrollToBottom();
   }, [currentLogs]);
 
-  // 从 localStorage 加载历史实验数据
+  // 从服务器加载历史实验数据
   useEffect(() => {
-    const saved = localStorage.getItem("mira_experiments");
-    if (saved) {
+    const loadExperiments = async () => {
       try {
-        setExperiments(JSON.parse(saved));
+        const res = await fetch("/api/experiments");
+        if (res.ok) {
+          const data = await res.json();
+          const loadedExperiments = data.experiments || [];
+          setExperiments(loadedExperiments);
+          console.log(`✅ 加载了 ${loadedExperiments.length} 个实验记录`);
+        } else {
+          console.error("❌ 加载实验数据失败:", await res.text());
+        }
       } catch (e) {
-        console.error("Failed to load experiments:", e);
+        console.error("❌ 加载实验数据异常:", e);
       }
-    }
+    };
+    loadExperiments();
   }, []);
 
-  // 保存实验数据到 localStorage
-  const saveExperiment = (metrics: ExperimentMetrics) => {
-    const updated = [...experiments, metrics];
-    setExperiments(updated);
-    localStorage.setItem("mira_experiments", JSON.stringify(updated));
+  // 保存实验数据到服务器（jsonl 文件）
+  const saveExperiment = async (metrics: ExperimentMetrics) => {
+    try {
+      const res = await fetch("/api/experiments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(metrics),
+      });
+
+      if (res.ok) {
+        // 更新本地状态
+        setExperiments((prev) => [...prev, metrics]);
+        console.log("✅ 实验数据已保存:", metrics);
+      } else {
+        console.error("❌ 保存实验数据失败:", await res.text());
+      }
+    } catch (e) {
+      console.error("❌ 保存实验数据异常:", e);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -109,15 +131,41 @@ export default function EvaluationPage() {
                 setCurrentLogs((prev) => [...prev, data.data]);
               } else if (data.type === "error") {
                 setCurrentLogs((prev) => [...prev, `[ERROR] ${data.data || data.error}`]);
+              } else if (data.type === "metrics" && data.metrics) {
+                // 收到评价结果数据，更新当前实验
+                console.log("📊 收到评价结果:", data.metrics);
+                setExperiments((prev) =>
+                  prev.map((exp) => {
+                    if (exp.experimentId === currentExperimentId) {
+                      const updatedMetrics: Record<string, number | null> = { ...exp.metrics };
+                      // 更新实际评价结果
+                      Object.entries(data.metrics as Record<string, number>).forEach(([name, value]) => {
+                        updatedMetrics[name] = value;
+                      });
+                      return { ...exp, metrics: updatedMetrics };
+                    }
+                    return exp;
+                  })
+                );
               } else if (data.type === "success") {
-                // 实验完成，解析评价结果
-                // 从日志中提取评价结果（这里需要根据实际日志格式解析）
-                // 暂时使用占位符，后续可以从 Langfuse API 获取
+                // 实验完成，保存实验记录
+                const datasetRunUrl = data.datasetRunUrl || data.data?.toString().match(/https?:\/\/[^\s]+/)?.[0];
+                
+                // 如果 success 消息中已经包含了 metrics，使用它们
+                const receivedMetrics = data.metrics as Record<string, number> | undefined;
+                
                 const metrics: Record<string, number | null> = {};
                 EVALUATOR_OPTIONS.forEach((evalOpt) => {
-                  // 如果选择了该评价器，设置为 null（表示需要从 API 获取）
-                  // 如果未选择，设置为特殊标志 -1
-                  metrics[evalOpt.id] = evaluators.includes(evalOpt.id) ? null : -1;
+                  // 如果收到了实际评价结果，使用实际值
+                  if (receivedMetrics && receivedMetrics[evalOpt.id] !== undefined) {
+                    metrics[evalOpt.id] = receivedMetrics[evalOpt.id];
+                  } else if (evaluators.includes(evalOpt.id)) {
+                    // 如果选择了该评价器但还没有结果，设置为 null
+                    metrics[evalOpt.id] = null;
+                  } else {
+                    // 如果未选择，设置为特殊标志 -1
+                    metrics[evalOpt.id] = -1;
+                  }
                 });
 
                 const experimentMetrics: ExperimentMetrics = {
@@ -128,10 +176,52 @@ export default function EvaluationPage() {
                   evaluators,
                   maxConcurrency,
                   metrics,
-                  datasetRunUrl: data.data?.toString().match(/https?:\/\/[^\s]+/)?.[0],
+                  datasetRunUrl,
                 };
 
-                saveExperiment(experimentMetrics);
+                await saveExperiment(experimentMetrics);
+                
+                // 如果还没有收到评价结果，尝试从 Langfuse API 获取
+                if (datasetRunUrl && !receivedMetrics) {
+                  setTimeout(async () => {
+                    try {
+                      const metricsRes = await fetch("/api/fetch-metrics", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ datasetRunUrl }),
+                      });
+                      
+                      if (metricsRes.ok) {
+                        const metricsData = await metricsRes.json();
+                        if (metricsData.metrics && Object.keys(metricsData.metrics).length > 0) {
+                          // 更新实验数据
+                          const updatedMetrics: ExperimentMetrics = {
+                            ...experimentMetrics,
+                            metrics: { ...experimentMetrics.metrics, ...metricsData.metrics },
+                          };
+                          
+                          // 更新到服务器
+                          const updateRes = await fetch("/api/experiments/update", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ experimentId, metrics: updatedMetrics.metrics }),
+                          });
+                          
+                          if (updateRes.ok) {
+                            // 更新本地状态
+                            setExperiments((prev) =>
+                              prev.map((exp) =>
+                                exp.experimentId === experimentId ? updatedMetrics : exp
+                              )
+                            );
+                          }
+                        }
+                      }
+                    } catch (e) {
+                      console.error("Failed to fetch metrics:", e);
+                    }
+                  }, 5000); // 等待 5 秒让 Langfuse 处理完成
+                }
               }
             } catch (e) {
               // 忽略解析错误
@@ -159,6 +249,10 @@ export default function EvaluationPage() {
       ...experiments.flatMap((exp) => exp.evaluators),
     ])
   );
+
+  // 调试日志
+  console.log("🔍 Page state - experiments:", experiments.length, experiments);
+  console.log("🔍 Page state - allSelectedEvaluators:", allSelectedEvaluators);
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
@@ -357,7 +451,45 @@ export default function EvaluationPage() {
 
       {/* 右侧图表面板 */}
       <aside className="flex-1 min-h-screen p-6 overflow-y-auto">
-        <MetricsChart experiments={experiments} selectedEvaluators={allSelectedEvaluators.length > 0 ? allSelectedEvaluators : EVALUATOR_OPTIONS.map(e => e.id)} />
+        <div className="mb-4 flex items-center justify-between">
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            共 {experiments.length} 个实验记录
+          </div>
+          <button
+            onClick={() => {
+              // 添加测试数据用于调试
+              const testData: ExperimentMetrics = {
+                experimentId: `test-${Date.now()}`,
+                timestamp: Date.now(),
+                dataset: "Ask",
+                environment: "test",
+                evaluators: ["completedEvaluator", "sessionCostEvaluator"],
+                maxConcurrency: 5,
+                metrics: {
+                  completedEvaluator: 0.95,
+                  sessionCostEvaluator: 0.12,
+                  gaiaEvaluator: -1,
+                  databaseStatusEvaluator: -1,
+                  toolCallEvaluator: -1,
+                  timeToFirstTokenEvaluator: -1,
+                  timeToLastTokenEvaluator: -1,
+                  outputTokensPerSecEvaluator: -1,
+                  tokensEvaluator: -1,
+                  sessionDurationEvaluator: -1,
+                  nTurnsEvaluator: -1,
+                },
+              };
+              saveExperiment(testData);
+            }}
+            className="px-3 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-800"
+          >
+            + 添加测试数据
+          </button>
+        </div>
+        <MetricsChart 
+          experiments={experiments} 
+          selectedEvaluators={allSelectedEvaluators.length > 0 ? allSelectedEvaluators : EVALUATOR_OPTIONS.map(e => e.id)} 
+        />
       </aside>
     </div>
   );
