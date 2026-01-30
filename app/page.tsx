@@ -255,176 +255,182 @@ export default function EvaluationPage() {
   console.log("🔍 Page state - allSelectedEvaluators:", allSelectedEvaluators);
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
-      {/* 左侧表单区域 */}
-      <main className="w-80 min-h-screen p-6 overflow-y-auto border-r-2 border-gray-200/50 dark:border-slate-700/50">
-        <div className="mb-8 animate-fadeIn">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/30 transform hover:rotate-12 transition-transform duration-300">
-              <span className="text-white text-xl font-bold">M</span>
+    <div className="flex flex-col h-screen bg-white dark:bg-black">
+      {/* 顶部标题栏 - 吸顶 */}
+      <header className="sticky top-0 z-50 bg-white/80 dark:bg-black/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-800/50">
+        <div className="px-8 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+              <span className="text-white text-lg font-semibold">M</span>
             </div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 dark:from-blue-400 dark:via-indigo-400 dark:to-purple-400 bg-clip-text text-transparent">
-              Mira Evaluation
-            </h1>
+            <div>
+              <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                Mira Evaluation
+              </h1>
+              <p className="text-xs text-gray-500 dark:text-gray-500 mt-0.5">
+                配置数据集、评价器与并发数后运行评估实验
+              </p>
+            </div>
           </div>
-          <p className="text-sm text-gray-600 dark:text-gray-400 ml-14">
-            配置数据集、评价器与并发数后运行评估实验
-          </p>
+          <div className="text-sm text-gray-500 dark:text-gray-500">
+            共 {experiments.length} 个实验记录
+          </div>
         </div>
+      </header>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* 数据集：单选 */}
-          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-2xl p-5 shadow-lg border border-white/20 dark:border-slate-700/50 hover:shadow-xl transition-all duration-300 animate-fadeIn">
-            <label className="block text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300 flex items-center gap-2">
-              <span className="text-blue-500">📊</span>
-              数据集
-            </label>
-            <select
-              value={dataset}
-              onChange={(e) => setDataset(e.target.value)}
-              disabled={isSubmitting}
-              className="w-full rounded-xl border-2 border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 text-sm font-medium transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed hover:border-blue-300 dark:hover:border-blue-600"
-            >
-              {DATASET_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* 环境：单选 */}
-          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-2xl p-5 shadow-lg border border-white/20 dark:border-slate-700/50 hover:shadow-xl transition-all duration-300 animate-fadeIn" style={{ animationDelay: '0.1s' }}>
-            <label className="block text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300 flex items-center gap-2">
-              <span className="text-indigo-500">🌍</span>
-              环境
-            </label>
-            <select
-              value={miraEnv}
-              onChange={(e) => setMiraEnv(e.target.value)}
-              disabled={isSubmitting}
-              className="w-full rounded-xl border-2 border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 text-sm font-medium transition-all duration-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed hover:border-indigo-300 dark:hover:border-indigo-600"
-            >
-              <option value="test">测试环境 (test)</option>
-              <option value="online">生产环境 (online)</option>
-            </select>
-            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">选择 Mira API 环境，对应 config.json 中的 test/online 配置</p>
-          </div>
-
-          {/* 评价器：多选 */}
-          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-2xl p-5 shadow-lg border border-white/20 dark:border-slate-700/50 hover:shadow-xl transition-all duration-300 animate-fadeIn" style={{ animationDelay: '0.2s' }}>
-            <label className="block text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300 flex items-center gap-2">
-              <span className="text-purple-500">⚙️</span>
-              评价器（可多选）
-            </label>
-            <div className="rounded-xl border-2 border-gray-200 dark:border-slate-700 bg-white/50 dark:bg-slate-900/50 p-4 space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
-              {EVALUATOR_OPTIONS.map((opt) => (
-                <label 
-                  key={opt.id} 
-                  className={`flex items-center gap-3 cursor-pointer p-2 rounded-lg transition-all duration-200 ${
-                    evaluators.includes(opt.id)
-                      ? "bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-300 dark:border-blue-700"
-                      : "hover:bg-gray-50 dark:hover:bg-slate-800/50 border-2 border-transparent"
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={evaluators.includes(opt.id)}
-                    onChange={() => toggleEvaluator(opt.id)}
-                    disabled={isSubmitting}
-                    className="w-4 h-4 rounded border-2 border-gray-300 dark:border-slate-600 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                  />
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{opt.label}</span>
-                </label>
-              ))}
+      {/* 主内容区域 */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* 左侧表单区域 - 苹果风格 */}
+        <main className="w-80 border-r border-gray-200/50 dark:border-gray-800/50 bg-gray-50/50 dark:bg-gray-950/50 overflow-y-auto">
+          <form onSubmit={handleSubmit} className="p-6 space-y-0">
+            {/* 数据集 */}
+            <div className="py-4 border-b border-gray-200/50 dark:border-gray-800/50">
+              <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
+                数据集
+              </label>
+              <select
+                value={dataset}
+                onChange={(e) => setDataset(e.target.value)}
+                disabled={isSubmitting}
+                className="w-full px-3 py-2.5 text-sm bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                {DATASET_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
             </div>
-          </div>
 
-          {/* 并发数：数字输入 */}
-          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-2xl p-5 shadow-lg border border-white/20 dark:border-slate-700/50 hover:shadow-xl transition-all duration-300 animate-fadeIn" style={{ animationDelay: '0.3s' }}>
-            <label className="block text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300 flex items-center gap-2">
-              <span className="text-green-500">🚀</span>
-              并发数
-            </label>
-            <input
-              type="number"
-              min={1}
-              max={20}
-              value={maxConcurrency}
-              onChange={(e) => setMaxConcurrency(Number(e.target.value) || 5)}
-              disabled={isSubmitting}
-              className="w-full rounded-xl border-2 border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 text-sm font-medium transition-all duration-200 focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:opacity-50 disabled:cursor-not-allowed hover:border-green-300 dark:hover:border-green-600"
-            />
-            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">对应 testMira-with-tools.js 中的 maxConcurrency</p>
-          </div>
+            {/* 环境 */}
+            <div className="py-4 border-b border-gray-200/50 dark:border-gray-800/50">
+              <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
+                环境
+              </label>
+              <select
+                value={miraEnv}
+                onChange={(e) => setMiraEnv(e.target.value)}
+                disabled={isSubmitting}
+                className="w-full px-3 py-2.5 text-sm bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                <option value="test">测试环境 (test)</option>
+                <option value="online">生产环境 (online)</option>
+              </select>
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-500">
+                选择 Mira API 环境，对应 config.json 中的 test/online 配置
+              </p>
+            </div>
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white py-4 font-semibold text-lg shadow-lg shadow-blue-500/50 hover:shadow-xl hover:shadow-blue-500/60 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] relative overflow-hidden group"
-          >
-            <span className="relative z-10 flex items-center justify-center gap-2">
-              {isSubmitting ? (
-                <>
-                  <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  运行中…
-                </>
-              ) : (
-                <>
-                  <span>▶</span>
-                  运行实验
-                </>
-              )}
-            </span>
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-          </button>
-        </form>
-      </main>
+            {/* 评价器 */}
+            <div className="py-4 border-b border-gray-200/50 dark:border-gray-800/50">
+              <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
+                评价器（可多选）
+              </label>
+              <div className="space-y-1 max-h-64 overflow-y-auto custom-scrollbar">
+                {EVALUATOR_OPTIONS.map((opt) => (
+                  <label 
+                    key={opt.id} 
+                    className={`flex items-center gap-3 cursor-pointer px-3 py-2 rounded-lg transition-colors ${
+                      evaluators.includes(opt.id)
+                        ? "bg-blue-50 dark:bg-blue-950/30"
+                        : "hover:bg-gray-100 dark:hover:bg-gray-900/50"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={evaluators.includes(opt.id)}
+                      onChange={() => toggleEvaluator(opt.id)}
+                      disabled={isSubmitting}
+                      className="w-4 h-4 rounded border-gray-300 dark:border-gray-700 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">{opt.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
 
-      {/* 中间日志面板（可折叠） */}
-      <aside className={`${isLogCollapsed ? "w-12" : "w-96"} border-r-2 border-gray-200/50 dark:border-slate-700/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm flex flex-col shadow-2xl transition-all duration-300`}>
+            {/* 并发数 */}
+            <div className="py-4 border-b border-gray-200/50 dark:border-gray-800/50">
+              <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
+                并发数
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={maxConcurrency}
+                onChange={(e) => setMaxConcurrency(Number(e.target.value) || 5)}
+                disabled={isSubmitting}
+                className="w-full px-3 py-2.5 text-sm bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              />
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-500">
+                对应 testMira-with-tools.js 中的 maxConcurrency
+              </p>
+            </div>
+
+            {/* 提交按钮 */}
+            <div className="pt-6">
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white text-sm font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {isSubmitting ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    运行中…
+                  </span>
+                ) : (
+                  "运行实验"
+                )}
+              </button>
+            </div>
+          </form>
+        </main>
+
+        {/* 中间日志面板（可折叠） */}
+        <aside className={`${isLogCollapsed ? "w-12" : "w-96"} border-r border-gray-200/50 dark:border-gray-800/50 bg-white dark:bg-black flex flex-col transition-all duration-300`}>
         {!isLogCollapsed && (
           <>
-            <div className="border-b-2 border-gray-200/50 dark:border-slate-700/50 p-5 bg-gradient-to-r from-slate-50 to-blue-50 dark:from-slate-800 dark:to-slate-900">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent flex items-center gap-2">
-                  <span>📋</span>
+            <div className="border-b border-gray-200/50 dark:border-gray-800/50 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
                   运行日志
                 </h2>
                 <button
                   onClick={() => setIsLogCollapsed(true)}
-                  className="p-2 rounded-lg hover:bg-white/50 dark:hover:bg-slate-700/50 transition-colors"
+                  className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-900 transition-colors"
                   title="收起"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 text-gray-500 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </button>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 font-mono text-xs bg-gradient-to-b from-white/50 to-slate-50/50 dark:from-slate-900/50 dark:to-slate-800/50 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto p-4 font-mono text-xs bg-white dark:bg-black custom-scrollbar">
               {currentLogs.length === 0 ? (
                 <div className="text-gray-400 dark:text-gray-500 text-center mt-8 flex flex-col items-center gap-2">
-                  <div className="text-4xl opacity-50">📝</div>
-                  <div className="text-sm">暂无日志</div>
+                  <div className="text-3xl opacity-30">📝</div>
+                  <div className="text-xs">暂无日志</div>
                 </div>
               ) : (
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                   {currentLogs.map((log, index) => (
                     <div
                       key={index}
-                      className={`p-2 rounded-lg transition-all duration-200 hover:bg-white/50 dark:hover:bg-slate-800/50 ${
+                      className={`px-2 py-1.5 rounded transition-colors ${
                         log.includes("[ERROR]") || log.includes("❌")
-                          ? "text-red-600 dark:text-red-400 bg-red-50/50 dark:bg-red-900/10"
+                          ? "text-red-600 dark:text-red-400"
                           : log.includes("[WARN]") || log.includes("⚠️")
-                          ? "text-yellow-600 dark:text-yellow-400 bg-yellow-50/50 dark:bg-yellow-900/10"
+                          ? "text-yellow-600 dark:text-yellow-400"
                           : log.includes("✅")
-                          ? "text-green-600 dark:text-green-400 bg-green-50/50 dark:bg-green-900/10"
-                          : "text-gray-700 dark:text-gray-300"
+                          ? "text-green-600 dark:text-green-400"
+                          : "text-gray-600 dark:text-gray-400"
                       }`}
                     >
                       {log}
@@ -439,58 +445,60 @@ export default function EvaluationPage() {
         {isLogCollapsed && (
           <button
             onClick={() => setIsLogCollapsed(false)}
-            className="w-full h-full flex items-center justify-center hover:bg-white/50 dark:hover:bg-slate-700/50 transition-colors"
+            className="w-full h-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-900 transition-colors"
             title="展开日志"
           >
-            <svg className="w-5 h-5 transform -rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 text-gray-500 dark:text-gray-500 transform -rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
         )}
-      </aside>
+        </aside>
 
-      {/* 右侧图表面板 */}
-      <aside className="flex-1 min-h-screen p-6 overflow-y-auto">
-        <div className="mb-4 flex items-center justify-between">
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            共 {experiments.length} 个实验记录
+        {/* 右侧图表面板 */}
+        <aside className="flex-1 overflow-y-auto bg-gray-50/50 dark:bg-gray-950/50">
+        <div className="h-full p-6">
+          <div className="mb-4 flex items-center justify-end">
+            <button
+              onClick={() => {
+                // 添加测试数据用于调试
+                const testData: ExperimentMetrics = {
+                  experimentId: `test-${Date.now()}`,
+                  timestamp: Date.now(),
+                  dataset: "Ask",
+                  environment: "test",
+                  evaluators: ["completedEvaluator", "sessionCostEvaluator"],
+                  maxConcurrency: 5,
+                  metrics: {
+                    completedEvaluator: 0.95,
+                    sessionCostEvaluator: 0.12,
+                    gaiaEvaluator: -1,
+                    databaseStatusEvaluator: -1,
+                    toolCallEvaluator: -1,
+                    timeToFirstTokenEvaluator: -1,
+                    timeToLastTokenEvaluator: -1,
+                    outputTokensPerSecEvaluator: -1,
+                    tokensEvaluator: -1,
+                    sessionDurationEvaluator: -1,
+                    nTurnsEvaluator: -1,
+                  },
+                };
+                saveExperiment(testData);
+              }}
+              className="px-3 py-1.5 text-xs bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
+            >
+              + 添加测试数据
+            </button>
           </div>
-          <button
-            onClick={() => {
-              // 添加测试数据用于调试
-              const testData: ExperimentMetrics = {
-                experimentId: `test-${Date.now()}`,
-                timestamp: Date.now(),
-                dataset: "Ask",
-                environment: "test",
-                evaluators: ["completedEvaluator", "sessionCostEvaluator"],
-                maxConcurrency: 5,
-                metrics: {
-                  completedEvaluator: 0.95,
-                  sessionCostEvaluator: 0.12,
-                  gaiaEvaluator: -1,
-                  databaseStatusEvaluator: -1,
-                  toolCallEvaluator: -1,
-                  timeToFirstTokenEvaluator: -1,
-                  timeToLastTokenEvaluator: -1,
-                  outputTokensPerSecEvaluator: -1,
-                  tokensEvaluator: -1,
-                  sessionDurationEvaluator: -1,
-                  nTurnsEvaluator: -1,
-                },
-              };
-              saveExperiment(testData);
-            }}
-            className="px-3 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-800"
-          >
-            + 添加测试数据
-          </button>
+          <div className="h-[calc(100vh-12rem)]">
+            <MetricsChart 
+              experiments={experiments} 
+              selectedEvaluators={allSelectedEvaluators.length > 0 ? allSelectedEvaluators : EVALUATOR_OPTIONS.map(e => e.id)} 
+            />
+          </div>
         </div>
-        <MetricsChart 
-          experiments={experiments} 
-          selectedEvaluators={allSelectedEvaluators.length > 0 ? allSelectedEvaluators : EVALUATOR_OPTIONS.map(e => e.id)} 
-        />
-      </aside>
+        </aside>
+      </div>
     </div>
   );
 }
